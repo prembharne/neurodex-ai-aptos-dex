@@ -1,0 +1,224 @@
+module 0xCAFE::solvency_manager {
+    use std::signer;
+    use std::vector;
+    use std::error;
+    use aptos_std::table::{Self as table, Table};
+    use std::option::{Self as opt, Option};
+
+    /// Errors
+    const E_POS_NOT_FOUND: u64 = 1;
+    const E_NOT_ENOUGH_MARGIN: u64 = 2;
+    const E_NOT_LIQUIDATABLE: u64 = 3;
+    const E_INVALID_SIDE: u64 = 4;
+    const E_COOLDOWN: u64 = 5;
+    const E_BOUNTY_TOO_SMALL: u64 = 6;
+
+    /// Side: 0 = LONG, 1 = SHORT
+    struct Position has copy, drop {
+        side: u8,
+        size: u64,
+        entry_px: u64,
+        margin: u128,
+        lev_bps: u64,
+        opened_ts: u64,
+    }
+
+    struct Vault has key {
+        balances: Table<address, u128>,
+        treasury: u128,
+        min_bounty_bps: u64,
+        min_bounty_abs: u128,
+    }
+
+    struct PairState has key {
+        pair_id: u64,
+        maint_margin_bps: u64,
+        liq_cooldown_secs: u64,
+        positions: Table<address, Position>,
+        last_liquidation: Table<address, u64>,
+        price_oracle: address,
+        mark_price: u64,
+    }
+
+    public entry fun init_vault(admin: &signer, min_bounty_bps: u64, min_bounty_abs: u128) {
+        let addr = signer::address_of(admin);
+        assert!(!exists<Vault>(addr), error::already_exists(0));
+        move_to<Vault>(admin, Vault {
+            balances: table::new<address, u128>(),
+            treasury: 0,
+            min_bounty_bps,
+            min_bounty_abs,
+        });
+    }
+
+    public entry fun deposit(admin: &signer, user: address, qty: u128) acquires Vault {
+        let v = borrow_global_mut<Vault>(signer::address_of(admin));
+        if (!table::contains(&v.balances, &user)) {
+            table::add(&mut v.balances, user, qty);
+        } else {
+            let bal_ref = table::borrow_mut(&mut v.balances, &user);
+            *bal_ref = *bal_ref + qty;
+        }
+    }
+
+    public fun vault_balance(admin_addr: address, user: address): u128 acquires Vault {
+        let v = borrow_global<Vault>(admin_addr);
+        if (!table::contains(&v.balances, &user)) 0 else table::borrow(&v.balances, &user)
+    }
+
+    public entry fun init_pair(admin: &signer, pair_id: u64, maint_bps: u64, cooldown: u64, oracle: address, mark_px: u64) {
+        let addr = signer::address_of(admin);
+        let key = pair_resource_address(addr, pair_id);
+        assert!(!exists<PairState>(key), error::already_exists(0));
+        move_to<PairState>(admin, PairState {
+            pair_id,
+            maint_margin_bps: maint_bps,
+            liq_cooldown_secs: cooldown,
+            positions: table::new<address, Position>(),
+            last_liquidation: table::new<address, u64>(),
+            price_oracle: oracle,
+            mark_price: mark_px,
+        });
+    }
+
+    fun pair_resource_address(admin: address, _pair_id: u64): address { admin }
+
+    public entry fun set_mark_price(admin: &signer, pair_id: u64, caller: &signer, new_px: u64) acquires PairState {
+        let pa = pair_resource_address(signer::address_of(admin), pair_id);
+        assert!(exists<PairState>(pa), error::not_found(0));
+        let st = borrow_global_mut<PairState>(pa);
+        assert!(signer::address_of(caller) == st.price_oracle, error::permission_denied(0));
+        st.mark_price = new_px;
+    }
+
+    public entry fun open_position(
+        admin: &signer,
+        pair_id: u64,
+        user: address,
+        side: u8,
+        size: u64,
+        entry_px: u64,
+        margin: u128,
+        lev_bps: u64
+    ) acquires PairState, Vault {
+        let pa = pair_resource_address(signer::address_of(admin), pair_id);
+        assert!(exists<PairState>(pa), error::not_found(0));
+        let st = borrow_global_mut<PairState>(pa);
+        assert!(side <= 1, error::invalid_argument(E_INVALID_SIDE));
+        let v = borrow_global_mut<Vault>(signer::address_of(admin));
+        let bal = if (!table::contains(&v.balances, &user)) 0 else *table::borrow(&v.balances, &user);
+        assert!(bal >= margin, error::invalid_argument(E_NOT_ENOUGH_MARGIN));
+        let cur = bal - margin;
+        if (!table::contains(&v.balances, &user)) {
+            table::add(&mut v.balances, user, cur);
+        } else {
+            let bref = table::borrow_mut(&mut v.balances, &user);
+            *bref = cur;
+        }
+        table::add(&mut st.positions, user, Position {
+            side,
+            size,
+            entry_px,
+            margin,
+            lev_bps,
+            opened_ts: 0,
+        });
+    }
+
+    fun notional(px: u64, size: u64): u128 {
+        (px as u128) * (size as u128)
+    }
+
+    fun maint_required(px: u64, size: u64, maint_bps: u64): u128 {
+        let n = notional(px, size);
+        (n * (maint_bps as u128)) / 10_000u128
+    }
+
+    fun unrealized_pnl(mark_px: u64, pos: &Position): i128 {
+        let delta = (mark_px as i128) - (pos.entry_px as i128);
+        let mv = delta * (pos.size as i128);
+        if (pos.side == 0) mv else -mv
+    }
+
+    fun account_health(mark_px: u64, pos: &Position, maint_bps: u64): i128 {
+        let margin_i = pos.margin as i128;
+        let pnl = unrealized_pnl(mark_px, pos);
+        let mm = maint_required(mark_px, pos.size, maint_bps) as i128;
+        margin_i + pnl - mm
+    }
+
+    public entry fun liquidate_if_unsafe(
+        admin: &signer,
+        pair_id: u64,
+        victim: address,
+        liquidator: address,
+        now_ts: u64
+    ) acquires PairState, Vault {
+        let pa = pair_resource_address(signer::address_of(admin), pair_id);
+        assert!(exists<PairState>(pa), error::not_found(E_POS_NOT_FOUND));
+        let st = borrow_global_mut<PairState>(pa);
+        assert!(table::contains(&st.positions, &victim), error::not_found(E_POS_NOT_FOUND));
+        let pos = table::borrow(&st.positions, &victim);
+        if (table::contains(&st.last_liquidation, &victim)) {
+            let last = *table::borrow(&st.last_liquidation, &victim);
+            assert!(now_ts >= last + st.liq_cooldown_secs, error::invalid_state(E_COOLDOWN));
+        }
+        let mark = st.mark_price;
+        let h = account_health(mark, &pos, st.maint_margin_bps);
+        assert!(h < 0, error::invalid_state(E_NOT_LIQUIDATABLE));
+        let seize: u128 = pos.margin;
+        let v = borrow_global_mut<Vault>(signer::address_of(admin));
+        let bps = v.min_bounty_bps as u128;
+        let calc_bounty = (seize * bps) / 10_000u128;
+        let bounty = if (calc_bounty >= v.min_bounty_abs) calc_bounty else v.min_bounty_abs;
+        let final_bounty = if (bounty <= seize) bounty else seize;
+        assert!(final_bounty >= v.min_bounty_abs, error::invalid_state(E_BOUNTY_TOO_SMALL));
+        let remaining = seize - final_bounty;
+        if (!table::contains(&v.balances, &liquidator)) {
+            table::add(&mut v.balances, liquidator, final_bounty);
+        } else {
+            let bref = table::borrow_mut(&mut v.balances, &liquidator);
+            *bref = *bref + final_bounty;
+        }
+        v.treasury = v.treasury + remaining;
+        table::remove(&mut st.positions, victim);
+        if (!table::contains(&st.last_liquidation, &victim)) {
+            table::add(&mut st.last_liquidation, victim, now_ts);
+        } else {
+            let tref = table::borrow_mut(&mut st.last_liquidation, &victim);
+            *tref = now_ts;
+        }
+    }
+
+    public entry fun withdraw_treasury(admin: &signer, to: address, amount: u128) acquires Vault {
+        let v = borrow_global_mut<Vault>(signer::address_of(admin));
+        assert!(v.treasury >= amount, error::invalid_argument(0));
+        v.treasury = v.treasury - amount;
+        if (!table::contains(&v.balances, &to)) {
+            table::add(&mut v.balances, to, amount);
+        } else {
+            let bref = table::borrow_mut(&mut v.balances, &to);
+            *bref = *bref + amount;
+        }
+    }
+
+    public fun is_liquidatable(admin_addr: address, pair_id: u64, owner: address): bool acquires PairState {
+        let pa = pair_resource_address(admin_addr, pair_id);
+        if (!exists<PairState>(pa)) return false;
+        let st = borrow_global<PairState>(pa);
+        if (!table::contains(&st.positions, &owner)) return false;
+        let pos = table::borrow(&st.positions, &owner);
+        let mark = st.mark_price;
+        let h = account_health(mark, &pos, st.maint_margin_bps);
+        h < 0
+    }
+
+    public fun get_mark(admin_addr: address, pair_id: u64): u64 acquires PairState {
+        let pa = pair_resource_address(admin_addr, pair_id);
+        borrow_global<PairState>(pa).mark_price
+    }
+
+    public fun get_vault_treasury(admin_addr: address): u128 acquires Vault {
+        borrow_global<Vault>(admin_addr).treasury
+    }
+}

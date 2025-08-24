@@ -1,0 +1,316 @@
+/* Wallet Integration Styles */
+.wallet-integration {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  color: white;
+}
+
+.wallet-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.wallet-header h2 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.wallet-header p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.connect-section {
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  padding: 30px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.wallet-info h3 {
+  font-size: 1.8rem;
+  margin-bottom: 15px;
+}
+
+.error-message {
+  background: rgba(255,0,0,0.2);
+  border: 1px solid rgba(255,0,0,0.3);
+  border-radius: 8px;
+  padding: 10px;
+  margin: 15px 0;
+  color: #ff6b6b;
+}
+
+.connect-btn {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  font-size: 1.2rem;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.connect-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+.connect-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.wallet-connected {
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  padding: 30px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.wallet-status h3 {
+  color: #4CAF50;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+}
+
+.address-section {
+  margin-bottom: 25px;
+}
+
+.address-section label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.address-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0,0,0,0.2);
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.address-display code {
+  flex: 1;
+  background: none;
+  color: #fff;
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+.copy-btn {
+  background: rgba(255,255,255,0.2);
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.copy-btn:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+.balance-section {
+  margin: 25px 0;
+}
+
+.balance-section h3 {
+  margin-bottom: 15px;
+  color: #FFD700;
+}
+
+.balance-display {
+  background: rgba(0,0,0,0.2);
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.balance-amount {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #FFD700;
+  margin-bottom: 5px;
+}
+
+.balance-raw {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  margin-bottom: 15px;
+}
+
+.refresh-btn {
+  background: rgba(255,255,255,0.2);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.refresh-btn:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+.transfer-section {
+  margin: 25px 0;
+}
+
+.transfer-section h3 {
+  margin-bottom: 15px;
+  color: #FF6B6B;
+}
+
+.transfer-form {
+  background: rgba(0,0,0,0.2);
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.address-input,
+.amount-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-size: 1rem;
+}
+
+.address-input::placeholder,
+.amount-input::placeholder {
+  color: rgba(255,255,255,0.5);
+}
+
+.transfer-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #FF6B6B, #ee5a52);
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  margin-top: 10px;
+}
+
+.transfer-btn:hover {
+  transform: translateY(-1px);
+}
+
+.transfer-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.transfer-result {
+  margin-top: 15px;
+  padding: 15px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.transfer-result.success {
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  color: #4CAF50;
+}
+
+.transfer-result.error {
+  background: rgba(255, 0, 0, 0.2);
+  border: 1px solid rgba(255, 0, 0, 0.3);
+  color: #ff6b6b;
+}
+
+.actions {
+  text-align: center;
+  margin-top: 25px;
+}
+
+.disconnect-btn {
+  background: rgba(255,255,255,0.2);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 10px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.disconnect-btn:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+.contract-info {
+  background: rgba(0,0,0,0.2);
+  padding: 20px;
+  border-radius: 10px;
+  margin-top: 25px;
+  border-left: 4px solid #667eea;
+}
+
+.contract-info h4 {
+  margin-bottom: 10px;
+  color: #667eea;
+}
+
+.contract-info p {
+  margin: 5px 0;
+  font-size: 0.9rem;
+}
+
+.contract-info code {
+  background: rgba(255,255,255,0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+@media (max-width: 768px) {
+  .wallet-integration {
+    padding: 15px;
+  }
+  
+  .wallet-header h2 {
+    font-size: 2rem;
+  }
+  
+  .address-display {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .balance-amount {
+    font-size: 1.5rem;
+  }
+}

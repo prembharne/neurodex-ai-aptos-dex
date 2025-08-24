@@ -1,0 +1,30 @@
+{
+  "name": "prompt-to-action-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p .",
+    "lint": "echo 'No linter configured'",
+  "dev": "node --loader ts-node/esm server/index.ts",
+  "test:quick": "node scripts/quickTest.mjs",
+  "gen:admin": "node --loader ts-node/esm scripts/genAdminAccount.ts"
+  },
+  "dependencies": {
+  "dotenv": "^16.4.5",
+  "node-fetch": "^3.3.2",
+    "express": "^4.19.2",
+  "@aptos-labs/ts-sdk": "^1.21.0",
+  "cors": "^2.8.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+  "@types/cors": "^2.8.17",
+    "@types/node": "^24.3.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  }
+}
